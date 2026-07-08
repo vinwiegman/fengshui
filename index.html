@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ReList — Smart second-hand listings</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="#" aria-label="ReList home"><span class="brand-mark">R</span><span>ReList</span></a>
+      <nav>
+        <a class="nav-item active" href="#"><span class="nav-icon">⌂</span> Create listing</a>
+        <a class="nav-item" href="#"><span class="nav-icon">▤</span> My listings <span class="count">12</span></a>
+        <a class="nav-item" href="#"><span class="nav-icon">◫</span> Sold items</a>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="tip-card"><span class="spark">✦</span><strong>Better photos, faster sales</strong><p>Natural light and a clear background help buyers decide.</p></div>
+        <a class="nav-item" href="#"><span class="nav-icon">?</span> Help & tips</a>
+        <div class="profile"><div class="avatar">AM</div><div><strong>Alex Morgan</strong><span>alex@example.com</span></div><button aria-label="Account menu">•••</button></div>
+      </div>
+    </aside>
+
+    <main>
+      <header class="topbar"><div></div><div class="secure"><span>◉</span> Your photos stay private</div></header>
+      <div class="content">
+        <div class="heading-row">
+          <div><p class="eyebrow">NEW LISTING</p><h1>What are you selling?</h1><p class="subtitle">Add a few photos and we’ll turn them into a clear, honest listing.</p></div>
+          <button class="ghost-btn" id="resetBtn">Start over</button>
+        </div>
+
+        <section class="step-card upload-section" id="uploadSection">
+          <div class="step-badge">1</div>
+          <div class="section-head"><div><h2>Add photos</h2><p>Use different angles so we can spot details and condition.</p></div><span class="photo-count" id="photoCount">3 of 8 photos</span></div>
+          <div class="photo-grid" id="photoGrid">
+            <article class="photo-card sample" data-view="Front view"><div class="shoe-art shoe-1"><span class="shoe-body"></span><span class="shoe-sole"></span><span class="shoe-laces">≋</span></div><span class="photo-label">Front view</span><button class="remove-photo" aria-label="Remove photo">×</button></article>
+            <article class="photo-card sample" data-view="Side view"><div class="shoe-art shoe-2"><span class="shoe-body"></span><span class="shoe-sole"></span><span class="shoe-laces">≋</span></div><span class="photo-label">Side view</span><button class="remove-photo" aria-label="Remove photo">×</button><span class="damage-dot" title="Possible scuff detected"></span></article>
+            <article class="photo-card sample" data-view="Sole"><div class="shoe-art shoe-3"><span class="shoe-body"></span><span class="shoe-sole"></span></div><span class="photo-label">Sole</span><button class="remove-photo" aria-label="Remove photo">×</button></article>
+            <label class="add-photo" for="photoInput"><span class="camera">⌁</span><strong>Add photos</strong><span>or drop them here</span><input id="photoInput" type="file" accept="image/*" multiple hidden></label>
+          </div>
+          <div class="photo-advice"><span>✦</span><div><strong>One more photo would help</strong><p>Add a close-up of the size label to confirm the exact model and size.</p></div><button id="addLabelBtn">Add label photo</button></div>
+        </section>
+
+        <section class="step-card" id="detailsSection">
+          <div class="step-badge">2</div>
+          <div class="section-head"><div><h2>Review the details</h2><p>We found these from your photos. Correct anything that looks off.</p></div><span class="ai-pill">✦ AI DRAFT</span></div>
+          <div class="details-layout">
+            <div class="form-grid">
+              <label><span>Item type</span><select id="itemType"><option>Sneakers</option><option>Trainers</option><option>Casual shoes</option></select></label>
+              <label><span>Brand</span><div class="input-confirm"><input id="brand" value="New Balance"><b>✓</b></div></label>
+              <label><span>Model</span><input id="model" value="550"></label>
+              <label><span>Colour</span><div class="color-input"><i></i><input id="color" value="White / Green"></div></label>
+              <label><span>Size</span><div class="size-row"><input id="size" value="EU 42"><span class="unverified">Unverified</span></div></label>
+              <label><span>Category</span><select id="category"><option>Fashion › Men › Shoes</option><option>Fashion › Women › Shoes</option><option>Sports › Footwear</option></select></label>
+            </div>
+            <aside class="confidence"><div class="confidence-top"><span>Recognition confidence</span><strong>92%</strong></div><div class="meter"><i></i></div><p>High confidence based on visible logo, shape and colourway.</p></aside>
+          </div>
+        </section>
+
+        <section class="step-card condition-card">
+          <div class="step-badge alert">3</div>
+          <div class="section-head"><div><h2>Verify condition</h2><p>We compare every photo so visible wear is never left out.</p></div><span class="transparent-pill">◉ TRANSPARENT REPORT</span></div>
+          <div class="condition-layout">
+            <div class="condition-summary"><div class="grade"><span>B</span><div><small>CONDITION GRADE</small><strong>Good</strong></div></div><p>Lightly worn with minor cosmetic signs of use. No structural damage detected.</p><label class="condition-select"><span>Overall condition</span><select id="condition"><option>Good — lightly used</option><option>Very good — minimal wear</option><option>Fair — visible wear</option></select></label></div>
+            <div class="findings"><div class="findings-head"><span>VISIBLE FINDINGS</span><span>2 detected</span></div><label class="finding"><input type="checkbox" checked><span class="finding-thumb scuff"></span><span><strong>Light scuff on right toe</strong><small>Visible in side view · Cosmetic</small></span><em>Included</em></label><label class="finding"><input type="checkbox" checked><span class="finding-thumb wear"></span><span><strong>Minor sole wear</strong><small>Visible in sole view · Normal use</small></span><em>Included</em></label><button class="text-btn" id="addFinding">＋ Add another condition note</button></div>
+          </div>
+          <div class="honesty-note"><span>🛡</span><div><strong>Honesty check passed</strong><p>Every visible issue is included in the description below.</p></div><span class="check">✓</span></div>
+        </section>
+
+        <section class="step-card listing-card">
+          <div class="step-badge">4</div>
+          <div class="section-head"><div><h2>Your listing draft</h2><p>Edit the wording, then copy or export when you’re happy.</p></div><button class="ghost-btn small" id="regenerateBtn">↻ Regenerate</button></div>
+          <label class="full-field"><span>Listing title <small id="titleCount">34 / 60</small></span><input id="title" maxlength="60" value="New Balance 550 White & Green — EU 42"></label>
+          <label class="full-field"><span>Description <small id="descCount">403 / 1000</small></span><textarea id="description" rows="8">Classic New Balance 550 sneakers in a clean white and green colourway. A versatile everyday pair with the signature low-top silhouette and leather upper.
+
+Condition: Good, lightly worn. There is a light cosmetic scuff on the right toe and minor wear to the soles, as shown in the photos. No structural damage detected.
+
+• Model: New Balance 550
+• Colour: White / Green
+• Size: EU 42 (please check label photo)
+
+From a smoke-free home.</textarea></label>
+          <div class="draft-footer"><div class="included"><span>✓</span> All 2 condition findings included</div><div class="actions"><button class="copy-btn" id="copyBtn">▣ Copy listing</button><button class="primary-btn" id="exportBtn">Export listing <span>→</span></button></div></div>
+        </section>
+      </div>
+    </main>
+  </div>
+  <div class="toast" id="toast"><span>✓</span><div><strong>Listing copied</strong><small>Ready to paste into your marketplace.</small></div></div>
+  <div class="modal-backdrop" id="exportModal" aria-hidden="true"><div class="modal"><button class="modal-close" id="modalClose">×</button><span class="export-icon">↗</span><h2>Your listing is ready</h2><p>Choose a simple, marketplace-friendly format.</p><button class="export-option" id="printBtn"><span>▤</span><div><strong>Printable listing page</strong><small>Save as PDF or print</small></div><b>→</b></button><button class="export-option" id="plainCopyBtn"><span>▣</span><div><strong>Copy formatted text</strong><small>Paste into any marketplace</small></div><b>→</b></button><p class="terms-note">Always review marketplace terms and API rules before posting.</p></div></div>
+  <script src="app.js"></script>
+</body>
+</html>
