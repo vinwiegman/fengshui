@@ -2,10 +2,12 @@
   "expo": {
     "name": "RoomRead",
     "slug": "roomread",
+    "description": "A zero-budget room redesign assistant proof of concept.",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "scheme": "roomread",
+    "githubUrl": "https://github.com/vinwiegman/fengshui",
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
