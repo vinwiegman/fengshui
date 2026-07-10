@@ -1,9 +1,0 @@
-{
-  "name": "RoomRead",
-  "short_name": "RoomRead",
-  "start_url": "./index.html",
-  "display": "standalone",
-  "background_color": "#f7f3ec",
-  "theme_color": "#2f7b63",
-  "description": "A zero-budget room redesign assistant prototype."
-}

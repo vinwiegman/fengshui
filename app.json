@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "RoomRead",
+    "slug": "roomread",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "roomread",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.vinwiegman.roomread"
+    },
+    "android": {
+      "package": "com.vinwiegman.roomread",
+      "adaptiveIcon": {
+        "backgroundColor": "#f7f3ec"
+      }
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "RoomRead uses room photos to build an editable zero-budget redesign plan."
+        }
+      ]
+    ]
+  }
+}
