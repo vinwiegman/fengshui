@@ -20,6 +20,8 @@ pnpm start -- --port 8082
 
 This project is on Expo SDK 54 so it opens in the current Expo Go app.
 
+The app uses a local `index.js` entrypoint so Expo resolves `App.js` correctly when dependencies are installed with pnpm.
+
 ## Current MVP
 
 - Upload a bedroom or student-room photo from the device library.
