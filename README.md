@@ -11,6 +11,15 @@ npm start
 
 Open the Expo QR code with Expo Go, or run it in an iOS/Android simulator.
 
+On this machine, if `node` or `pnpm` is not on your PowerShell `PATH`, run:
+
+```powershell
+$env:Path = "C:\Users\vinwi\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin;C:\Users\vinwi\.cache\codex-runtimes\codex-primary-runtime\dependencies\bin;$env:Path"
+pnpm start -- --port 8082
+```
+
+This project is on Expo SDK 54 so it opens in the current Expo Go app.
+
 ## Current MVP
 
 - Upload a bedroom or student-room photo from the device library.
