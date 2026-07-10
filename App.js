@@ -1,11 +1,13 @@
 import React, { useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
+  Share,
   StatusBar,
   StyleSheet,
   Switch,
@@ -35,6 +37,7 @@ const steps = [
   { id: "inventory", label: "Items", icon: "cube-outline" },
   { id: "analysis", label: "Read", icon: "analytics-outline" },
   { id: "plan", label: "Plan", icon: "trail-sign-outline" },
+  { id: "summary", label: "Export", icon: "share-outline" },
 ];
 
 const goals = [
@@ -47,11 +50,11 @@ const goals = [
 ];
 
 const starterObjects = [
-  { id: "bed_1", label: "Bed", type: "bed", movable: false },
-  { id: "desk_1", label: "Desk", type: "desk", movable: true },
-  { id: "chair_1", label: "Chair", type: "chair", movable: true },
-  { id: "wardrobe_1", label: "Wardrobe", type: "wardrobe", movable: false },
-  { id: "clutter_1", label: "Floor clutter", type: "clutter", movable: true },
+  { id: "bed_1", label: "Bed", type: "bed", movable: false, confidence: 0.91, zone: "left wall", box: { x: 8, y: 54, w: 46, h: 30 } },
+  { id: "desk_1", label: "Desk", type: "desk", movable: true, confidence: 0.86, zone: "window side", box: { x: 56, y: 36, w: 32, h: 24 } },
+  { id: "chair_1", label: "Chair", type: "chair", movable: true, confidence: 0.82, zone: "desk front", box: { x: 48, y: 55, w: 18, h: 21 } },
+  { id: "wardrobe_1", label: "Wardrobe", type: "wardrobe", movable: false, confidence: 0.79, zone: "back wall", box: { x: 70, y: 12, w: 22, h: 35 } },
+  { id: "clutter_1", label: "Floor clutter", type: "clutter", movable: true, confidence: 0.74, zone: "floor path", box: { x: 30, y: 73, w: 27, h: 13 } },
 ];
 
 const constraintOptions = [
@@ -68,8 +71,9 @@ export default function App() {
   const [objects, setObjects] = useState(starterObjects);
   const [goal, setGoal] = useState(goals[0]);
   const [constraints, setConstraints] = useState(["no purchases", "do not block door", "retain wardrobe access"]);
+  const [analysisState, setAnalysisState] = useState("idle");
 
-  const analysis = useMemo(() => buildAnalysis(objects, constraints), [objects, constraints]);
+  const analysis = useMemo(() => buildAnalysis(objects, constraints, photo), [objects, constraints, photo]);
   const plan = useMemo(() => generatePlan(objects, goal), [objects, goal]);
 
   async function pickImage() {
@@ -83,7 +87,11 @@ export default function App() {
     });
 
     if (!result.canceled) {
-      setPhoto(result.assets[0]);
+      const selectedPhoto = result.assets[0];
+      setPhoto(selectedPhoto);
+      setAnalysisState("scanning");
+      setObjects(createSimulatedDetections(selectedPhoto));
+      setTimeout(() => setAnalysisState("complete"), 1400);
     }
   }
 
@@ -95,7 +103,15 @@ export default function App() {
     const next = objects.length + 1;
     setObjects((current) => [
       ...current,
-      { id: `item_${next}`, label: `Item ${next}`, type: "clutter", movable: true },
+      {
+        id: `item_${next}`,
+        label: `Item ${next}`,
+        type: "clutter",
+        movable: true,
+        confidence: 0.58,
+        zone: "user added",
+        box: { x: 18 + (next % 4) * 12, y: 24 + (next % 3) * 16, w: 22, h: 14 },
+      },
     ]);
   }
 
@@ -123,7 +139,7 @@ export default function App() {
         <StepTabs value={step} onChange={setStep} />
 
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          {step === "photo" && <PhotoScreen photo={photo} pickImage={pickImage} />}
+          {step === "photo" && <PhotoScreen photo={photo} objects={objects} analysisState={analysisState} pickImage={pickImage} />}
           {step === "inventory" && (
             <InventoryScreen
               objects={objects}
@@ -133,8 +149,9 @@ export default function App() {
               toggleConstraint={toggleConstraint}
             />
           )}
-          {step === "analysis" && <AnalysisScreen analysis={analysis} goal={goal} setGoal={setGoal} />}
-          {step === "plan" && <PlanScreen photo={photo} plan={plan} analysis={analysis} />}
+          {step === "analysis" && <AnalysisScreen analysis={analysis} goal={goal} setGoal={setGoal} analysisState={analysisState} />}
+          {step === "plan" && <PlanScreen photo={photo} objects={objects} plan={plan} analysis={analysis} />}
+          {step === "summary" && <SummaryScreen photo={photo} objects={objects} goal={goal} constraints={constraints} analysis={analysis} plan={plan} />}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -162,12 +179,12 @@ function StepTabs({ value, onChange }) {
   );
 }
 
-function PhotoScreen({ photo, pickImage }) {
+function PhotoScreen({ photo, objects, analysisState, pickImage }) {
   return (
     <View style={styles.stack}>
       <Pressable style={styles.photoPanel} onPress={pickImage}>
         {photo ? (
-          <Image source={{ uri: photo.uri }} style={styles.roomPhoto} />
+          <AnnotatedPhoto photo={photo} objects={objects} showArrows={false} />
         ) : (
           <View style={styles.photoEmpty}>
             <View style={styles.addCircle}>
@@ -179,11 +196,21 @@ function PhotoScreen({ photo, pickImage }) {
         )}
       </Pressable>
 
+      {analysisState === "scanning" ? (
+        <View style={styles.scanBanner}>
+          <ActivityIndicator color={palette.greenDark} />
+          <View style={styles.flex}>
+            <Text style={styles.scanTitle}>AI analysis simulated</Text>
+            <Text style={styles.bodyText}>Reading room coverage, furniture candidates, and visible clutter.</Text>
+          </View>
+        </View>
+      ) : null}
+
       <Panel title="Capture checks">
         <View style={styles.metrics}>
           <Metric value={photo ? "ready" : "needed"} label="photo" />
           <Metric value={photo?.width > photo?.height ? "wide" : photo ? "portrait" : "--"} label="coverage" />
-          <Metric value="manual" label="detection" />
+          <Metric value={photo ? `${Math.round(averageConfidence(objects) * 100)}%` : "--"} label="confidence" />
         </View>
         <Text style={styles.note}>
           Real object detection, masks, depth maps, and generated after-images need model weights or external APIs.
@@ -203,6 +230,10 @@ function InventoryScreen({ objects, updateObject, addObject, constraints, toggle
             <View key={item.id} style={styles.itemRow}>
               <View style={[styles.swatch, { backgroundColor: colorForType(item.type) }]} />
               <View style={styles.itemFields}>
+                <View style={styles.confidenceLine}>
+                  <Text style={styles.detectedLabel}>Detected object</Text>
+                  <Text style={styles.confidenceText}>{Math.round((item.confidence || 0.5) * 100)}% confidence</Text>
+                </View>
                 <TextInput
                   value={item.label}
                   onChangeText={(label) => updateObject(item.id, { label })}
@@ -215,6 +246,13 @@ function InventoryScreen({ objects, updateObject, addObject, constraints, toggle
                   onChangeText={(type) => updateObject(item.id, { type: type.toLowerCase() })}
                   style={styles.input}
                   placeholder="type"
+                  placeholderTextColor={palette.muted}
+                />
+                <TextInput
+                  value={item.zone}
+                  onChangeText={(zone) => updateObject(item.id, { zone })}
+                  style={styles.input}
+                  placeholder="zone"
                   placeholderTextColor={palette.muted}
                 />
               </View>
@@ -249,9 +287,19 @@ function InventoryScreen({ objects, updateObject, addObject, constraints, toggle
   );
 }
 
-function AnalysisScreen({ analysis, goal, setGoal }) {
+function AnalysisScreen({ analysis, goal, setGoal, analysisState }) {
   return (
     <View style={styles.stack}>
+      {analysisState === "scanning" ? (
+        <View style={styles.scanBanner}>
+          <ActivityIndicator color={palette.greenDark} />
+          <View style={styles.flex}>
+            <Text style={styles.scanTitle}>AI analysis simulated</Text>
+            <Text style={styles.bodyText}>Scoring layout and building editable findings from the uploaded photo.</Text>
+          </View>
+        </View>
+      ) : null}
+
       <Panel eyebrow="Room profile" title={analysis.category}>
         <View style={styles.metrics}>
           <Metric value={analysis.calm} label="calm" />
@@ -285,11 +333,11 @@ function AnalysisScreen({ analysis, goal, setGoal }) {
   );
 }
 
-function PlanScreen({ photo, plan, analysis }) {
+function PlanScreen({ photo, objects, plan, analysis }) {
   return (
     <View style={styles.stack}>
       <View style={styles.conceptPanel}>
-        {photo ? <Image source={{ uri: photo.uri }} style={styles.conceptPhoto} /> : <View style={styles.conceptFallback} />}
+        {photo ? <AnnotatedPhoto photo={photo} objects={objects} showArrows /> : <View style={styles.conceptFallback} />}
         <View style={styles.overlayCard}>
           <Text style={styles.overlayTitle}>Concept overlay</Text>
           <Text style={styles.overlayText}>Arrows and actions are planning guidance, not measured fit proof.</Text>
@@ -334,6 +382,82 @@ function PlanScreen({ photo, plan, analysis }) {
   );
 }
 
+function SummaryScreen({ photo, objects, goal, constraints, analysis, plan }) {
+  const summary = [
+    "RoomRead zero-budget redesign summary",
+    `Photo: ${photo ? `${photo.width}x${photo.height}` : "not uploaded"}`,
+    `Goal: ${goal}`,
+    `Room: ${analysis.category}`,
+    `Scores: calm ${analysis.calm}, clutter ${analysis.clutter}, flow ${analysis.flow}`,
+    `Detected items: ${objects.map((item) => item.label).join(", ")}`,
+    `Constraints: ${constraints.join(", ")}`,
+    "Plan:",
+    ...plan.map((item) => `${item.step}. ${item.action} ${item.object} -> ${item.destination}`),
+  ].join("\n");
+
+  async function shareSummary() {
+    await Share.share({ message: summary, title: "RoomRead redesign summary" });
+  }
+
+  return (
+    <View style={styles.stack}>
+      <Panel eyebrow="Export" title="Demo summary">
+        <View style={styles.summaryHero}>
+          <Ionicons name="document-text-outline" size={30} color={palette.greenDark} />
+          <View style={styles.flex}>
+            <Text style={styles.findingTitle}>Ready to share</Text>
+            <Text style={styles.bodyText}>A compact report of the uploaded photo, detected items, constraints, scores, and plan.</Text>
+          </View>
+        </View>
+        <Pressable onPress={shareSummary} style={styles.primaryButton}>
+          <Ionicons name="share-outline" color="#fff" size={18} />
+          <Text style={styles.primaryText}>Share summary</Text>
+        </Pressable>
+      </Panel>
+
+      <Panel title="Preview">
+        <Text style={styles.summaryText}>{summary}</Text>
+      </Panel>
+    </View>
+  );
+}
+
+function AnnotatedPhoto({ photo, objects, showArrows }) {
+  return (
+    <View style={styles.annotatedWrap}>
+      <Image source={{ uri: photo.uri }} style={styles.roomPhoto} />
+      <View style={styles.photoShade} />
+      {objects.slice(0, 6).map((item) => (
+        <View
+          key={item.id}
+          style={[
+            styles.detectBox,
+            {
+              borderColor: colorForType(item.type),
+              left: `${item.box?.x || 12}%`,
+              top: `${item.box?.y || 20}%`,
+              width: `${item.box?.w || 20}%`,
+              height: `${item.box?.h || 14}%`,
+            },
+          ]}
+        >
+          <Text style={[styles.boxLabel, { backgroundColor: colorForType(item.type) }]} numberOfLines={1}>
+            {item.label}
+          </Text>
+        </View>
+      ))}
+      {showArrows ? (
+        <>
+          <View style={[styles.arrowLine, styles.arrowOne]} />
+          <View style={[styles.arrowHead, styles.arrowHeadOne]} />
+          <View style={[styles.arrowLine, styles.arrowTwo]} />
+          <View style={[styles.arrowHead, styles.arrowHeadTwo]} />
+        </>
+      ) : null}
+    </View>
+  );
+}
+
 function Panel({ title, eyebrow, children, actionLabel, onAction }) {
   return (
     <View style={styles.panel}>
@@ -362,24 +486,39 @@ function Metric({ value, label }) {
   );
 }
 
-function buildAnalysis(objects, constraints) {
+function buildAnalysis(objects, constraints, photo) {
   const clutterCount = objects.filter((item) => ["clutter", "clothing", "boxes"].includes(item.type)).length;
   const movableCount = objects.filter((item) => item.movable).length;
   const hasDesk = objects.some((item) => item.type === "desk");
   const hasChair = objects.some((item) => item.type === "chair");
-  const flow = Math.max(30, 78 - clutterCount * 14);
-  const calm = Math.max(28, 74 - clutterCount * 11 + (constraints.includes("no purchases") ? 4 : 0));
+  const widePhotoBonus = photo?.width > photo?.height ? 6 : 0;
+  const portraitPenalty = photo && photo.width <= photo.height ? 5 : 0;
+  const confidenceBonus = Math.round((averageConfidence(objects) - 0.7) * 20);
+  const flow = Math.max(30, 78 - clutterCount * 14 + widePhotoBonus - portraitPenalty);
+  const calm = Math.max(28, 74 - clutterCount * 11 + (constraints.includes("no purchases") ? 4 : 0) + confidenceBonus);
   const clutter = Math.min(95, 28 + clutterCount * 23);
 
   return {
-    category: movableCount > 3 ? "Student room, flexible layout" : "Bedroom, fixed-furniture layout",
+    category: photo
+      ? movableCount > 3
+        ? "Scanned student room, flexible layout"
+        : "Scanned bedroom, fixed-furniture layout"
+      : movableCount > 3
+        ? "Student room, flexible layout"
+        : "Bedroom, fixed-furniture layout",
     flow,
     calm,
     clutter,
     findings: [
       {
+        title: "Photo read",
+        body: photo
+          ? `${photo.width}x${photo.height} image. ${photo.width > photo.height ? "Wide coverage improves the simulated layout read." : "Portrait crop may hide wall-to-wall relationships."}`
+          : "No room photo yet. Uploading a photo will change coverage, confidence, and findings.",
+      },
+      {
         title: "Likely style",
-        body: "Practical modern bedroom with mixed storage. Confidence is low until real scene understanding is connected.",
+        body: `Practical modern bedroom with mixed storage. Simulated average detection confidence is ${Math.round(averageConfidence(objects) * 100)}%.`,
       },
       {
         title: "Clutter pressure",
@@ -397,6 +536,29 @@ function buildAnalysis(objects, constraints) {
       },
     ],
   };
+}
+
+function createSimulatedDetections(photo) {
+  const isWide = photo?.width > photo?.height;
+  const sizeScore = Math.min(0.08, ((photo?.width || 1200) * (photo?.height || 900)) / 12000000);
+  const base = isWide ? 0.82 : 0.74;
+  return starterObjects.map((item, index) => ({
+    ...item,
+    confidence: Math.min(0.96, base + sizeScore - index * 0.025),
+    zone: isWide ? item.zone : item.zone.replace("wall", "visible wall").replace("side", "cropped side"),
+    box: isWide
+      ? item.box
+      : {
+          ...item.box,
+          x: Math.min(78, (item.box?.x || 20) + 5),
+          w: Math.max(16, (item.box?.w || 22) - 4),
+        },
+  }));
+}
+
+function averageConfidence(objects) {
+  if (objects.length === 0) return 0;
+  return objects.reduce((sum, item) => sum + (item.confidence || 0.5), 0) / objects.length;
 }
 
 function generatePlan(objects, goal) {
@@ -557,6 +719,73 @@ const styles = StyleSheet.create({
     height: 320,
     width: "100%",
   },
+  annotatedWrap: {
+    backgroundColor: "#2a302d",
+    height: 320,
+    overflow: "hidden",
+    position: "relative",
+    width: "100%",
+  },
+  photoShade: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.08)",
+  },
+  detectBox: {
+    borderRadius: 6,
+    borderWidth: 2,
+    position: "absolute",
+  },
+  boxLabel: {
+    alignSelf: "flex-start",
+    borderBottomRightRadius: 6,
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "900",
+    maxWidth: 120,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+  },
+  arrowLine: {
+    backgroundColor: "#fff",
+    height: 4,
+    position: "absolute",
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    transform: [{ rotate: "-14deg" }],
+    width: 104,
+  },
+  arrowOne: {
+    left: "31%",
+    top: "47%",
+  },
+  arrowTwo: {
+    left: "55%",
+    top: "65%",
+    transform: [{ rotate: "18deg" }],
+    width: 86,
+  },
+  arrowHead: {
+    borderBottomColor: "transparent",
+    borderBottomWidth: 8,
+    borderLeftColor: "#fff",
+    borderLeftWidth: 14,
+    borderTopColor: "transparent",
+    borderTopWidth: 8,
+    height: 0,
+    position: "absolute",
+    width: 0,
+  },
+  arrowHeadOne: {
+    left: "58%",
+    top: "43%",
+    transform: [{ rotate: "-14deg" }],
+  },
+  arrowHeadTwo: {
+    left: "76%",
+    top: "67%",
+    transform: [{ rotate: "18deg" }],
+  },
   photoEmpty: {
     alignItems: "center",
     flex: 1,
@@ -584,6 +813,21 @@ const styles = StyleSheet.create({
     color: palette.muted,
     fontSize: 14,
     lineHeight: 20,
+  },
+  scanBanner: {
+    alignItems: "center",
+    backgroundColor: "#e9f1ec",
+    borderColor: "#cdded3",
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 12,
+    padding: 13,
+  },
+  scanTitle: {
+    color: palette.greenDark,
+    fontSize: 14,
+    fontWeight: "900",
   },
   panel: {
     backgroundColor: palette.panel,
@@ -618,6 +862,20 @@ const styles = StyleSheet.create({
   },
   secondaryText: {
     color: palette.greenDark,
+    fontWeight: "900",
+  },
+  primaryButton: {
+    alignItems: "center",
+    backgroundColor: palette.green,
+    borderRadius: 8,
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "center",
+    minHeight: 46,
+    paddingHorizontal: 14,
+  },
+  primaryText: {
+    color: "#fff",
     fontWeight: "900",
   },
   metrics: {
@@ -668,6 +926,23 @@ const styles = StyleSheet.create({
   itemFields: {
     flex: 1,
     gap: 7,
+  },
+  confidenceLine: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "space-between",
+  },
+  detectedLabel: {
+    color: palette.greenDark,
+    fontSize: 11,
+    fontWeight: "900",
+    textTransform: "uppercase",
+  },
+  confidenceText: {
+    color: palette.muted,
+    fontSize: 12,
+    fontWeight: "800",
   },
   input: {
     backgroundColor: "#fffdf8",
@@ -831,5 +1106,19 @@ const styles = StyleSheet.create({
     color: palette.ink,
     fontWeight: "900",
     width: 28,
+  },
+  summaryHero: {
+    alignItems: "center",
+    backgroundColor: "#e9f1ec",
+    borderRadius: 8,
+    flexDirection: "row",
+    gap: 12,
+    padding: 12,
+  },
+  summaryText: {
+    color: palette.ink,
+    fontFamily: Platform.select({ ios: "Menlo", android: "monospace", default: "monospace" }),
+    fontSize: 12,
+    lineHeight: 18,
   },
 });

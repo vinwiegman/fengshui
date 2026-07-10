@@ -7,11 +7,15 @@ RoomRead is currently a client-only Expo proof of concept. It is designed so the
 ```text
 Expo mobile app
   ├── Photo picker
+  ├── Simulated AI loading state
+  ├── Fake annotated photo overlay
   ├── Editable inventory state
+  ├── Detection confidence and zone metadata
   ├── Constraint state
   ├── Goal selection
   ├── Heuristic room analysis
-  └── Heuristic rearrangement plan
+  ├── Heuristic rearrangement plan
+  └── Shareable summary export
 ```
 
 The current recommendation engine is deterministic JavaScript inside `App.js`. It reads:

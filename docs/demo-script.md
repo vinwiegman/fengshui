@@ -16,14 +16,18 @@ RoomRead is a zero-budget room redesign assistant. The key idea is that it shoul
 
 1. Start on the Photo screen.
 2. Upload/select a room photo.
-3. Move to Items.
-4. Show that the inventory is editable.
-5. Toggle constraints like `no purchases`, `do not block door`, and `keep desk usable`.
-6. Move to Read.
-7. Show room category and scores.
-8. Pick a goal such as `improve study space`.
-9. Move to Plan.
-10. Show the structured actions and before/after score.
+3. Point out the simulated AI analysis loading state.
+4. Show the fake detection boxes over the uploaded photo.
+5. Move to Items.
+6. Show editable detected-object cards, confidence labels, and room zones.
+7. Toggle constraints like `no purchases`, `do not block door`, and `keep desk usable`.
+8. Move to Read.
+9. Show that the photo affects coverage, confidence, category, and scores.
+10. Pick a goal such as `improve study space`.
+11. Move to Plan.
+12. Show the annotated arrows, structured actions, and before/after score.
+13. Move to Export.
+14. Share or preview the generated redesign summary.
 
 ## Important Framing
 

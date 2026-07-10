@@ -19,10 +19,13 @@ This repository is intentionally scoped as a polished POC: it demonstrates the m
 - Expo SDK 54 React Native app for iOS and Android.
 - Mobile-first interface with four clear screens: Photo, Items, Read, Plan.
 - Photo picker using `expo-image-picker`.
-- Editable furniture and clutter inventory.
+- Simulated AI analysis loading state after selecting a room photo.
+- Fake annotated photo overlay with detection boxes and planning arrows.
+- Editable detected-object cards with confidence labels and room zones.
 - Constraint toggles for zero-budget planning.
 - Goal-based recommendation logic.
 - Room category, clutter, calm, and walking-flow scoring.
+- Shareable/exportable redesign summary screen.
 - POC disclaimers for unsupported AI components.
 - pnpm-compatible local `index.js` entrypoint.
 
@@ -73,7 +76,9 @@ RoomRead currently proves:
 - the project structure;
 - the zero-budget redesign identity;
 - editable inventory and constraints;
+- simulated AI analysis and annotated photo feedback;
 - deterministic recommendation generation;
+- final summary export/share flow;
 - Expo Go compatibility.
 
 It does not yet perform real computer vision. Object detection, segmentation, depth estimation, and AI image editing require model weights or external APIs.

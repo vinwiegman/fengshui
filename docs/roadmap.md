@@ -4,10 +4,14 @@
 
 - Expo mobile app.
 - Photo picker.
+- Simulated analysis loading.
+- Fake detected-object overlays.
 - Editable inventory.
+- Detection confidence and zone cards.
 - Goal selection.
 - Constraint toggles.
 - Heuristic analysis and plan generation.
+- Share/export summary screen.
 - GitHub-ready documentation.
 
 ## Phase 2: AI-Assisted MVP
