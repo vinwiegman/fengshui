@@ -53,13 +53,6 @@ pnpm start
 
 Open the QR code with Expo Go.
 
-On this machine, if `node` or `pnpm` is not on your PowerShell `PATH`, run:
-
-```powershell
-$env:Path = "C:\Users\vinwi\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin;C:\Users\vinwi\.cache\codex-runtimes\codex-primary-runtime\dependencies\bin;$env:Path"
-pnpm start -- --port 8082 --clear
-```
-
 ## Useful Commands
 
 ```bash
