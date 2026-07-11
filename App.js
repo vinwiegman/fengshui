@@ -36,10 +36,10 @@ const palette = {
 };
 
 const steps = [
-  { id: "photo", label: "Photo", icon: "image-outline" },
+  { id: "photo", label: "Photos", icon: "images-outline" },
   { id: "inventory", label: "Items", icon: "cube-outline" },
   { id: "analysis", label: "Read", icon: "analytics-outline" },
-  { id: "plan", label: "Plan", icon: "trail-sign-outline" },
+  { id: "plan", label: "Layout", icon: "map-outline" },
   { id: "summary", label: "Export", icon: "share-outline" },
 ];
 
@@ -198,13 +198,14 @@ function FieldInput({ style, ...rest }) {
 export default function App() {
   const reducedMotion = useReducedMotion();
   const [step, setStep] = useState("photo");
-  const [photo, setPhoto] = useState(null);
+  const [photos, setPhotos] = useState([]);
   const [objects, setObjects] = useState(starterObjects);
   const [goal, setGoal] = useState(goals[0]);
   const [constraints, setConstraints] = useState(["no purchases", "do not block door", "retain wardrobe access"]);
   const [analysisState, setAnalysisState] = useState("idle");
 
-  const analysis = useMemo(() => buildAnalysis(objects, constraints, photo), [objects, constraints, photo]);
+  const primaryPhoto = photos[0] || null;
+  const analysis = useMemo(() => buildAnalysis(objects, constraints, primaryPhoto, photos.length), [objects, constraints, primaryPhoto, photos.length]);
   const plan = useMemo(() => generatePlan(objects, goal), [objects, goal]);
   const stepAnim = useStepTransition(step);
   const currentStep = steps.find((item) => item.id === step) || steps[0];
@@ -222,9 +223,10 @@ export default function App() {
 
     if (!result.canceled) {
       const selectedPhoto = result.assets[0];
-      setPhoto(selectedPhoto);
+      const nextPhotoCount = photos.length + 1;
+      setPhotos((current) => [...current, selectedPhoto].slice(0, 6));
       setAnalysisState("scanning");
-      setObjects(createSimulatedDetections(selectedPhoto));
+      setObjects(createSimulatedDetections(selectedPhoto, nextPhotoCount));
       setTimeout(() => setAnalysisState("complete"), 1400);
     }
   }
@@ -264,7 +266,7 @@ export default function App() {
             <View>
               <Text style={styles.eyebrow}>Room redesign MVP</Text>
               <Text style={styles.title}>RoomRead</Text>
-              <Text style={styles.headerSubtitle}>{currentStep.label} · Step {currentStepIndex + 1} of {steps.length}</Text>
+              <Text style={styles.headerSubtitle}>{currentStep.label} - Step {currentStepIndex + 1} of {steps.length}</Text>
             </View>
             <View style={styles.zeroBadge}>
               <Ionicons name="cash-outline" color={palette.greenDark} size={16} />
@@ -274,7 +276,7 @@ export default function App() {
 
           <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
             <Animated.View style={{ opacity: stepAnim.opacity, transform: stepAnim.transform }}>
-              {step === "photo" && <PhotoScreen photo={photo} objects={objects} analysisState={analysisState} pickImage={pickImage} />}
+              {step === "photo" && <PhotoScreen photo={primaryPhoto} photos={photos} objects={objects} analysisState={analysisState} pickImage={pickImage} />}
               {step === "inventory" && (
                 <InventoryScreen
                   objects={objects}
@@ -285,8 +287,8 @@ export default function App() {
                 />
               )}
               {step === "analysis" && <AnalysisScreen analysis={analysis} goal={goal} setGoal={setGoal} analysisState={analysisState} />}
-              {step === "plan" && <PlanScreen photo={photo} objects={objects} plan={plan} analysis={analysis} />}
-              {step === "summary" && <SummaryScreen photo={photo} objects={objects} goal={goal} constraints={constraints} analysis={analysis} plan={plan} />}
+              {step === "plan" && <PlanScreen photo={primaryPhoto} photos={photos} objects={objects} plan={plan} analysis={analysis} />}
+              {step === "summary" && <SummaryScreen photo={primaryPhoto} photos={photos} objects={objects} goal={goal} constraints={constraints} analysis={analysis} plan={plan} />}
             </Animated.View>
           </ScrollView>
 
@@ -373,7 +375,7 @@ function StepTabs({ value, onChange }) {
   );
 }
 
-function PhotoScreen({ photo, objects, analysisState, pickImage }) {
+function PhotoScreen({ photo, photos, objects, analysisState, pickImage }) {
   return (
     <View style={styles.stack}>
       <Tappable style={styles.photoPanel} onPress={pickImage} scaleTo={0.99}>
@@ -383,22 +385,39 @@ function PhotoScreen({ photo, objects, analysisState, pickImage }) {
           <View style={styles.photoEmpty}>
             <FadeInItem index={0}>
               <View style={styles.addCircle}>
-                <Ionicons name="add" size={32} color="#fff" />
+                <Ionicons name="images-outline" size={32} color="#fff" />
               </View>
             </FadeInItem>
-            <Text style={styles.photoTitle}>Upload one bedroom photo</Text>
-            <Text style={styles.bodyTextLight}>Use a clear wide shot with furniture, floor, and doorway visible.</Text>
+            <Text style={styles.photoTitle}>Upload room photos</Text>
+            <Text style={styles.bodyTextLight}>Add 2-4 angles if you have them: doorway, bed wall, desk wall, and floor path.</Text>
           </View>
         )}
       </Tappable>
+
+      <Panel title="Room coverage" actionLabel={photos.length ? "Add angle" : "Upload"} onAction={pickImage}>
+        <View style={styles.coverageRow}>
+          <Metric value={`${photos.length}/4`} label="angles" />
+          <Metric value={photos.length > 1 ? "multi" : photos.length ? "single" : "--"} label="coverage" />
+          <Metric value={photo ? `${Math.round(averageConfidence(objects) * 100)}%` : "--"} label="confidence" />
+        </View>
+        {photos.length ? (
+          <View style={styles.thumbnailRow}>
+            {photos.map((item, index) => (
+              <Image key={`${item.uri}-${index}`} source={{ uri: item.uri }} style={styles.thumbnail} />
+            ))}
+          </View>
+        ) : (
+          <Text style={styles.note}>Start with one wide room photo. Extra angles make the simulated layout map feel more grounded.</Text>
+        )}
+      </Panel>
 
       {analysisState === "scanning" ? (
         <FadeInItem>
           <View style={styles.scanBanner}>
             <ActivityIndicator color={palette.greenDark} />
             <View style={styles.flex}>
-              <Text style={styles.scanTitle}>AI analysis simulated</Text>
-              <Text style={styles.bodyText}>Reading room coverage, furniture candidates, and visible clutter.</Text>
+              <Text style={styles.scanTitle}>AI layout analysis simulated</Text>
+              <Text style={styles.bodyText}>Estimating walls, furniture zones, walkway, and an optimized floor-plan map.</Text>
             </View>
           </View>
         </FadeInItem>
@@ -407,12 +426,12 @@ function PhotoScreen({ photo, objects, analysisState, pickImage }) {
       <Panel title="Capture checks">
         <View style={styles.metrics}>
           <Metric value={photo ? "ready" : "needed"} label="photo" />
-          <Metric value={photo?.width > photo?.height ? "wide" : photo ? "portrait" : "--"} label="coverage" />
-          <Metric value={photo ? `${Math.round(averageConfidence(objects) * 100)}%` : "--"} label="confidence" />
+          <Metric value={photo?.width > photo?.height ? "wide" : photo ? "portrait" : "--"} label="main shot" />
+          <Metric value={photos.length >= 3 ? "strong" : photos.length >= 1 ? "draft" : "--"} label="map read" />
         </View>
         <Text style={styles.note}>
           Real object detection, masks, depth maps, and generated after-images need model weights or external APIs.
-          This mobile MVP keeps detections editable until that pipeline is connected.
+          This POC simulates the room map so the product demo centers on the intended optimized layout output.
         </Text>
       </Panel>
     </View>
@@ -531,14 +550,27 @@ function AnalysisScreen({ analysis, goal, setGoal, analysisState }) {
   );
 }
 
-function PlanScreen({ photo, objects, plan, analysis }) {
+function PlanScreen({ photo, photos, objects, plan, analysis }) {
   return (
     <View style={styles.stack}>
+      <Panel eyebrow="Optimized output" title="Room layout map">
+        <Text style={styles.note}>
+          Simulated top-down layout generated from {photos.length || 0} uploaded photo angle{photos.length === 1 ? "" : "s"} and the editable inventory.
+        </Text>
+        <LayoutComparison objects={objects} />
+        <View style={styles.mapLegend}>
+          <LegendDot color={palette.coral} label="sleep" />
+          <LegendDot color={palette.blue} label="work" />
+          <LegendDot color={palette.gold} label="storage" />
+          <LegendDot color={palette.green} label="clear path" />
+        </View>
+      </Panel>
+
       <View style={styles.conceptPanel}>
         {photo ? <AnnotatedPhoto photo={photo} objects={objects} showArrows /> : <View style={styles.conceptFallback} />}
         <View style={styles.overlayCard}>
-          <Text style={styles.overlayTitle}>Concept overlay</Text>
-          <Text style={styles.overlayText}>Arrows and actions are planning guidance, not measured fit proof.</Text>
+          <Text style={styles.overlayTitle}>Photo-to-map trace</Text>
+          <Text style={styles.overlayText}>Detection boxes feed the map; the map is still approximate in this POC.</Text>
         </View>
       </View>
 
@@ -580,10 +612,67 @@ function PlanScreen({ photo, objects, plan, analysis }) {
   );
 }
 
-function SummaryScreen({ photo, objects, goal, constraints, analysis, plan }) {
+function LayoutComparison({ objects }) {
+  return (
+    <View style={styles.layoutComparison}>
+      <FloorPlan title="Current" objects={objects} optimized={false} />
+      <FloorPlan title="Optimized" objects={objects} optimized />
+    </View>
+  );
+}
+
+function FloorPlan({ title, objects, optimized }) {
+  const items = buildMapItems(objects, optimized);
+  return (
+    <View style={styles.floorPlanCard}>
+      <View style={styles.floorPlanHeader}>
+        <Text style={styles.floorPlanTitle}>{title}</Text>
+        <Text style={[styles.floorPlanPill, optimized && styles.floorPlanPillOptimized]}>
+          {optimized ? "+22 flow" : "observed"}
+        </Text>
+      </View>
+      <View style={styles.floorPlan}>
+        <View style={styles.windowMarker} />
+        <View style={styles.doorMarker}>
+          <Text style={styles.doorText}>Door</Text>
+        </View>
+        {optimized ? <View style={styles.walkPath} /> : <View style={styles.blockedPath} />}
+        {items.map((item) => (
+          <View
+            key={item.id}
+            style={[
+              styles.mapObject,
+              {
+                backgroundColor: item.color,
+                left: `${item.x}%`,
+                top: `${item.y}%`,
+                width: `${item.w}%`,
+                height: `${item.h}%`,
+              },
+              item.type === "clutter" && styles.mapClutter,
+            ]}
+          >
+            <Text style={styles.mapObjectText} numberOfLines={1}>{item.label}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function LegendDot({ color, label }) {
+  return (
+    <View style={styles.legendItem}>
+      <View style={[styles.legendDot, { backgroundColor: color }]} />
+      <Text style={styles.legendText}>{label}</Text>
+    </View>
+  );
+}
+
+function SummaryScreen({ photo, photos, objects, goal, constraints, analysis, plan }) {
   const summary = [
     "RoomRead zero-budget redesign summary",
-    `Photo: ${photo ? `${photo.width}x${photo.height}` : "not uploaded"}`,
+    `Photos: ${photos.length} uploaded${photo ? `, primary ${photo.width}x${photo.height}` : ""}`,
     `Goal: ${goal}`,
     `Room: ${analysis.category}`,
     `Scores: calm ${analysis.calm}, clutter ${analysis.clutter}, flow ${analysis.flow}`,
@@ -604,7 +693,7 @@ function SummaryScreen({ photo, objects, goal, constraints, analysis, plan }) {
           <Ionicons name="document-text-outline" size={30} color={palette.greenDark} />
           <View style={styles.flex}>
             <Text style={styles.findingTitle}>Ready to share</Text>
-            <Text style={styles.bodyText}>A compact report of the uploaded photo, detected items, constraints, scores, and plan.</Text>
+            <Text style={styles.bodyText}>A compact report of the photos, optimized map, detected items, constraints, scores, and plan.</Text>
           </View>
         </View>
         <Tappable onPress={shareSummary} style={styles.primaryButton} scaleTo={0.97}>
@@ -686,15 +775,16 @@ function Metric({ value, label }) {
   );
 }
 
-function buildAnalysis(objects, constraints, photo) {
+function buildAnalysis(objects, constraints, photo, photoCount = 0) {
   const clutterCount = objects.filter((item) => ["clutter", "clothing", "boxes"].includes(item.type)).length;
   const movableCount = objects.filter((item) => item.movable).length;
   const hasDesk = objects.some((item) => item.type === "desk");
   const hasChair = objects.some((item) => item.type === "chair");
+  const coverageBonus = Math.min(10, Math.max(0, photoCount - 1) * 3);
   const widePhotoBonus = photo?.width > photo?.height ? 6 : 0;
   const portraitPenalty = photo && photo.width <= photo.height ? 5 : 0;
   const confidenceBonus = Math.round((averageConfidence(objects) - 0.7) * 20);
-  const flow = Math.max(30, 78 - clutterCount * 14 + widePhotoBonus - portraitPenalty);
+  const flow = Math.max(30, 78 - clutterCount * 14 + widePhotoBonus + coverageBonus - portraitPenalty);
   const calm = Math.max(28, 74 - clutterCount * 11 + (constraints.includes("no purchases") ? 4 : 0) + confidenceBonus);
   const clutter = Math.min(95, 28 + clutterCount * 23);
 
@@ -713,8 +803,12 @@ function buildAnalysis(objects, constraints, photo) {
       {
         title: "Photo read",
         body: photo
-          ? `${photo.width}x${photo.height} image. ${photo.width > photo.height ? "Wide coverage improves the simulated layout read." : "Portrait crop may hide wall-to-wall relationships."}`
-          : "No room photo yet. Uploading a photo will change coverage, confidence, and findings.",
+          ? `${photoCount} photo angle${photoCount === 1 ? "" : "s"} uploaded. ${photo.width > photo.height ? "Wide coverage improves the simulated map." : "Portrait crop may hide wall-to-wall relationships."}`
+          : "No room photo yet. Uploading photos will change coverage, confidence, map quality, and findings.",
+      },
+      {
+        title: "Optimized map logic",
+        body: "The generated layout keeps the bed fixed, moves work items toward light, groups clutter near storage, and opens a door-to-desk walking path.",
       },
       {
         title: "Likely style",
@@ -738,10 +832,11 @@ function buildAnalysis(objects, constraints, photo) {
   };
 }
 
-function createSimulatedDetections(photo) {
+function createSimulatedDetections(photo, photoCount = 1) {
   const isWide = photo?.width > photo?.height;
   const sizeScore = Math.min(0.08, ((photo?.width || 1200) * (photo?.height || 900)) / 12000000);
-  const base = isWide ? 0.82 : 0.74;
+  const coverageScore = Math.min(0.08, Math.max(0, photoCount - 1) * 0.025);
+  const base = (isWide ? 0.82 : 0.74) + coverageScore;
   return starterObjects.map((item, index) => ({
     ...item,
     confidence: Math.min(0.96, base + sizeScore - index * 0.025),
@@ -754,6 +849,47 @@ function createSimulatedDetections(photo) {
           w: Math.max(16, (item.box?.w || 22) - 4),
         },
   }));
+}
+
+function buildMapItems(objects, optimized) {
+  return objects.slice(0, 6).map((item, index) => {
+    const base = mapPresetForType(item.type, optimized);
+    const fallback = {
+      x: 12 + (index % 3) * 24,
+      y: 18 + Math.floor(index / 3) * 28,
+      w: 20,
+      h: 14,
+    };
+    return {
+      id: item.id,
+      label: item.label,
+      type: item.type,
+      color: colorForType(item.type),
+      ...(base || fallback),
+    };
+  });
+}
+
+function mapPresetForType(type, optimized) {
+  const current = {
+    bed: { x: 6, y: 54, w: 45, h: 30 },
+    desk: { x: 56, y: 35, w: 32, h: 22 },
+    chair: { x: 47, y: 56, w: 18, h: 16 },
+    wardrobe: { x: 68, y: 8, w: 24, h: 30 },
+    clutter: { x: 31, y: 75, w: 28, h: 12 },
+    boxes: { x: 30, y: 75, w: 26, h: 12 },
+    clothing: { x: 28, y: 74, w: 28, h: 12 },
+  };
+  const optimizedMap = {
+    bed: { x: 6, y: 54, w: 45, h: 30 },
+    desk: { x: 55, y: 10, w: 34, h: 20 },
+    chair: { x: 62, y: 32, w: 17, h: 14 },
+    wardrobe: { x: 68, y: 63, w: 24, h: 28 },
+    clutter: { x: 72, y: 52, w: 18, h: 9 },
+    boxes: { x: 72, y: 52, w: 18, h: 9 },
+    clothing: { x: 72, y: 52, w: 18, h: 9 },
+  };
+  return optimized ? optimizedMap[type] : current[type];
 }
 
 function averageConfidence(objects) {
@@ -1177,6 +1313,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 10,
   },
+  coverageRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  thumbnailRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  thumbnail: {
+    backgroundColor: "#2a302d",
+    borderRadius: 12,
+    height: 58,
+    width: 58,
+  },
   metric: {
     backgroundColor: "#f2eee6",
     borderRadius: 14,
@@ -1350,6 +1500,139 @@ const styles = StyleSheet.create({
     color: palette.muted,
     fontSize: 13,
     lineHeight: 18,
+  },
+  layoutComparison: {
+    gap: 12,
+  },
+  floorPlanCard: {
+    backgroundColor: "#f7f3ec",
+    borderColor: palette.line,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 12,
+  },
+  floorPlanHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  floorPlanTitle: {
+    color: palette.ink,
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  floorPlanPill: {
+    backgroundColor: "#e8e0d3",
+    borderRadius: 999,
+    color: palette.muted,
+    fontSize: 11,
+    fontWeight: "900",
+    overflow: "hidden",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    textTransform: "uppercase",
+  },
+  floorPlanPillOptimized: {
+    backgroundColor: "#dceee6",
+    color: palette.greenDark,
+  },
+  floorPlan: {
+    aspectRatio: 1.28,
+    backgroundColor: "#fffdf8",
+    borderColor: palette.ink,
+    borderRadius: 12,
+    borderWidth: 2,
+    overflow: "hidden",
+    position: "relative",
+  },
+  windowMarker: {
+    backgroundColor: "#9bc5e8",
+    borderBottomLeftRadius: 6,
+    borderBottomRightRadius: 6,
+    height: 7,
+    left: "55%",
+    position: "absolute",
+    top: 0,
+    width: "32%",
+  },
+  doorMarker: {
+    alignItems: "center",
+    backgroundColor: "#f6dfc4",
+    borderTopLeftRadius: 8,
+    bottom: 0,
+    height: 28,
+    justifyContent: "center",
+    position: "absolute",
+    right: "10%",
+    width: "24%",
+  },
+  doorText: {
+    color: palette.muted,
+    fontSize: 10,
+    fontWeight: "900",
+  },
+  walkPath: {
+    backgroundColor: "rgba(47, 123, 99, 0.18)",
+    borderColor: "rgba(47, 123, 99, 0.45)",
+    borderRadius: 999,
+    borderWidth: 1,
+    height: "13%",
+    left: "39%",
+    position: "absolute",
+    top: "43%",
+    transform: [{ rotate: "-28deg" }],
+    width: "46%",
+  },
+  blockedPath: {
+    backgroundColor: "rgba(217, 95, 75, 0.16)",
+    borderColor: "rgba(217, 95, 75, 0.5)",
+    borderRadius: 999,
+    borderWidth: 1,
+    height: "14%",
+    left: "35%",
+    position: "absolute",
+    top: "59%",
+    transform: [{ rotate: "-8deg" }],
+    width: "38%",
+  },
+  mapObject: {
+    alignItems: "center",
+    borderColor: "rgba(255,255,255,0.75)",
+    borderRadius: 8,
+    borderWidth: 1,
+    justifyContent: "center",
+    paddingHorizontal: 3,
+    position: "absolute",
+  },
+  mapClutter: {
+    opacity: 0.86,
+  },
+  mapObjectText: {
+    color: "#fff",
+    fontSize: 9,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+  mapLegend: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 9,
+  },
+  legendItem: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 5,
+  },
+  legendDot: {
+    borderRadius: 999,
+    height: 9,
+    width: 9,
+  },
+  legendText: {
+    color: palette.muted,
+    fontSize: 12,
+    fontWeight: "800",
   },
   planItem: {
     alignItems: "flex-start",

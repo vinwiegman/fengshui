@@ -7,6 +7,7 @@ RoomRead is currently a client-only Expo proof of concept. It is designed so the
 ```text
 Expo mobile app
   ├── Photo picker
+  ├── Multi-photo room coverage state
   ├── Simulated AI loading state
   ├── Fake annotated photo overlay
   ├── Editable inventory state
@@ -14,6 +15,7 @@ Expo mobile app
   ├── Constraint state
   ├── Goal selection
   ├── Heuristic room analysis
+  ├── Current vs optimized top-down layout map
   ├── Heuristic rearrangement plan
   └── Shareable summary export
 ```

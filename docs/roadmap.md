@@ -4,8 +4,10 @@
 
 - Expo mobile app.
 - Photo picker.
+- Multi-photo room coverage flow.
 - Simulated analysis loading.
 - Fake detected-object overlays.
+- Current vs optimized top-down layout map.
 - Editable inventory.
 - Detection confidence and zone cards.
 - Goal selection.

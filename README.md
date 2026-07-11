@@ -1,26 +1,28 @@
 # RoomRead
 
-RoomRead is a mobile proof of concept for a zero-budget interior redesign assistant. A user uploads a bedroom or student-room photo, reviews an editable room inventory, chooses a redesign goal, and receives a constrained rearrangement plan that uses only existing items.
+RoomRead is a mobile proof of concept for a zero-budget interior redesign assistant. A user uploads room photos, reviews an editable room inventory, chooses a redesign goal, and receives an optimized top-down layout map plus a constrained rearrangement plan that uses only existing items.
 
 This repository is intentionally scoped as a polished POC: it demonstrates the mobile product flow and recommendation model, while clearly marking the computer-vision and image-generation pieces that would be connected in a production version.
 
 ## Demo Flow
 
 1. Open the app in Expo Go.
-2. Upload or select a bedroom/student-room photo.
+2. Upload or select bedroom/student-room photos.
 3. Review the draft inventory.
 4. Add or rename furniture and clutter items.
 5. Toggle hard constraints such as `no purchases` or `do not block door`.
 6. Choose a redesign goal.
-7. Review the zero-budget rearrangement plan and before/after score.
+7. Review the optimized layout map, zero-budget rearrangement plan, and before/after score.
 
 ## Features
 
 - Expo SDK 54 React Native app for iOS and Android.
-- Mobile-first interface with four clear screens: Photo, Items, Read, Plan.
+- Mobile-first interface with five guided screens: Photos, Items, Read, Layout, Export.
 - Photo picker using `expo-image-picker`.
+- Multi-photo room coverage flow for doorway, wall, and floor-path angles.
 - Simulated AI analysis loading state after selecting a room photo.
 - Fake annotated photo overlay with detection boxes and planning arrows.
+- Optimized top-down room map showing current vs proposed layout.
 - Editable detected-object cards with confidence labels and room zones.
 - Constraint toggles for zero-budget planning.
 - Goal-based recommendation logic.
@@ -69,7 +71,7 @@ RoomRead currently proves:
 - the project structure;
 - the zero-budget redesign identity;
 - editable inventory and constraints;
-- simulated AI analysis and annotated photo feedback;
+- simulated AI analysis, annotated photo feedback, and optimized layout map;
 - deterministic recommendation generation;
 - final summary export/share flow;
 - Expo Go compatibility.
