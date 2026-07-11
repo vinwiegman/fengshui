@@ -8,6 +8,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "go": "expo start --clear --lan",
+    "go:offline": "expo start --offline --clear",
     "check": "expo install --check",
     "export:android": "expo export --platform android"
   },
