@@ -1,6 +1,9 @@
-import React, { useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
+  AccessibilityInfo,
   ActivityIndicator,
+  Animated,
+  Easing,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -65,7 +68,135 @@ const constraintOptions = [
   "keep desk usable",
 ];
 
+const easeOut = Easing.bezier(0.23, 1, 0.32, 1);
+
+const MotionContext = createContext(false);
+
+function useReducedMotion() {
+  const [reduced, setReduced] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    AccessibilityInfo.isReduceMotionEnabled?.().then((value) => {
+      if (mounted) setReduced(!!value);
+    });
+    const subscription = AccessibilityInfo.addEventListener?.("reduceMotionChanged", (value) => setReduced(!!value));
+    return () => {
+      mounted = false;
+      subscription?.remove?.();
+    };
+  }, []);
+
+  return reduced;
+}
+
+function useStepTransition(step) {
+  const reduced = useContext(MotionContext);
+  const opacity = useRef(new Animated.Value(1)).current;
+  const translateY = useRef(new Animated.Value(0)).current;
+  const previousStep = useRef(step);
+
+  useEffect(() => {
+    if (previousStep.current === step) return;
+    previousStep.current = step;
+
+    if (reduced) {
+      opacity.setValue(1);
+      translateY.setValue(0);
+      return;
+    }
+
+    opacity.setValue(0);
+    translateY.setValue(10);
+    Animated.parallel([
+      Animated.timing(opacity, { toValue: 1, duration: 240, easing: easeOut, useNativeDriver: true }),
+      Animated.timing(translateY, { toValue: 0, duration: 240, easing: easeOut, useNativeDriver: true }),
+    ]).start();
+  }, [step, reduced]);
+
+  return { opacity, transform: [{ translateY }] };
+}
+
+function Tappable({ onPress, style, children, scaleTo = 0.97, ...rest }) {
+  const reduced = useContext(MotionContext);
+  const scale = useRef(new Animated.Value(1)).current;
+
+  function pressIn() {
+    if (reduced) return;
+    Animated.spring(scale, { toValue: scaleTo, useNativeDriver: true, speed: 40, bounciness: 0 }).start();
+  }
+
+  function pressOut() {
+    if (reduced) return;
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 18, bounciness: 6 }).start();
+  }
+
+  return (
+    <Pressable onPress={onPress} onPressIn={pressIn} onPressOut={pressOut} style={style} {...rest}>
+      <Animated.View style={{ transform: [{ scale }] }}>{children}</Animated.View>
+    </Pressable>
+  );
+}
+
+function FadeInItem({ index = 0, style, children }) {
+  const reduced = useContext(MotionContext);
+  const opacity = useRef(new Animated.Value(reduced ? 1 : 0)).current;
+  const translateY = useRef(new Animated.Value(reduced ? 0 : 10)).current;
+
+  useEffect(() => {
+    if (reduced) return;
+    const delay = Math.min(index, 6) * 45;
+    Animated.parallel([
+      Animated.timing(opacity, { toValue: 1, duration: 260, delay, easing: easeOut, useNativeDriver: true }),
+      Animated.timing(translateY, { toValue: 0, duration: 260, delay, easing: easeOut, useNativeDriver: true }),
+    ]).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return <Animated.View style={[style, { opacity, transform: [{ translateY }] }]}>{children}</Animated.View>;
+}
+
+function AnimatedBar({ value, color }) {
+  const reduced = useContext(MotionContext);
+  const progress = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(progress, {
+      toValue: Math.max(0, Math.min(100, value)) / 100,
+      duration: reduced ? 0 : 550,
+      easing: easeOut,
+      useNativeDriver: true,
+    }).start();
+  }, [value, reduced]);
+
+  return (
+    <Animated.View
+      style={[
+        styles.scoreFill,
+        {
+          backgroundColor: color,
+          transform: [{ scaleX: progress }],
+          transformOrigin: "left",
+        },
+      ]}
+    />
+  );
+}
+
+function FieldInput({ style, ...rest }) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <TextInput
+      {...rest}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      style={[styles.input, focused && styles.inputFocused, style]}
+    />
+  );
+}
+
 export default function App() {
+  const reducedMotion = useReducedMotion();
   const [step, setStep] = useState("photo");
   const [photo, setPhoto] = useState(null);
   const [objects, setObjects] = useState(starterObjects);
@@ -75,6 +206,7 @@ export default function App() {
 
   const analysis = useMemo(() => buildAnalysis(objects, constraints, photo), [objects, constraints, photo]);
   const plan = useMemo(() => generatePlan(objects, goal), [objects, goal]);
+  const stepAnim = useStepTransition(step);
 
   async function pickImage() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -122,39 +254,43 @@ export default function App() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" />
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.flex}>
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.eyebrow}>Interior assistant</Text>
-            <Text style={styles.title}>RoomRead</Text>
+    <MotionContext.Provider value={reducedMotion}>
+      <SafeAreaView style={styles.safe}>
+        <StatusBar barStyle="dark-content" />
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.flex}>
+          <View style={styles.header}>
+            <View>
+              <Text style={styles.eyebrow}>Interior assistant</Text>
+              <Text style={styles.title}>RoomRead</Text>
+            </View>
+            <View style={styles.zeroBadge}>
+              <Ionicons name="cash-outline" color={palette.greenDark} size={16} />
+              <Text style={styles.zeroBadgeText}>Zero-budget</Text>
+            </View>
           </View>
-          <View style={styles.zeroBadge}>
-            <Ionicons name="cash-outline" color={palette.greenDark} size={18} />
-            <Text style={styles.zeroBadgeText}>Zero-budget</Text>
-          </View>
-        </View>
 
-        <StepTabs value={step} onChange={setStep} />
+          <StepTabs value={step} onChange={setStep} />
 
-        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          {step === "photo" && <PhotoScreen photo={photo} objects={objects} analysisState={analysisState} pickImage={pickImage} />}
-          {step === "inventory" && (
-            <InventoryScreen
-              objects={objects}
-              updateObject={updateObject}
-              addObject={addObject}
-              constraints={constraints}
-              toggleConstraint={toggleConstraint}
-            />
-          )}
-          {step === "analysis" && <AnalysisScreen analysis={analysis} goal={goal} setGoal={setGoal} analysisState={analysisState} />}
-          {step === "plan" && <PlanScreen photo={photo} objects={objects} plan={plan} analysis={analysis} />}
-          {step === "summary" && <SummaryScreen photo={photo} objects={objects} goal={goal} constraints={constraints} analysis={analysis} plan={plan} />}
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+          <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+            <Animated.View style={{ opacity: stepAnim.opacity, transform: stepAnim.transform }}>
+              {step === "photo" && <PhotoScreen photo={photo} objects={objects} analysisState={analysisState} pickImage={pickImage} />}
+              {step === "inventory" && (
+                <InventoryScreen
+                  objects={objects}
+                  updateObject={updateObject}
+                  addObject={addObject}
+                  constraints={constraints}
+                  toggleConstraint={toggleConstraint}
+                />
+              )}
+              {step === "analysis" && <AnalysisScreen analysis={analysis} goal={goal} setGoal={setGoal} analysisState={analysisState} />}
+              {step === "plan" && <PlanScreen photo={photo} objects={objects} plan={plan} analysis={analysis} />}
+              {step === "summary" && <SummaryScreen photo={photo} objects={objects} goal={goal} constraints={constraints} analysis={analysis} plan={plan} />}
+            </Animated.View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </MotionContext.Provider>
   );
 }
 
@@ -164,15 +300,16 @@ function StepTabs({ value, onChange }) {
       {steps.map((item) => {
         const active = item.id === value;
         return (
-          <Pressable
+          <Tappable
             accessibilityRole="button"
             key={item.id}
             onPress={() => onChange(item.id)}
             style={[styles.tab, active && styles.tabActive]}
+            scaleTo={0.95}
           >
             <Ionicons name={item.icon} size={17} color={active ? "#fff" : palette.muted} />
             <Text style={[styles.tabText, active && styles.tabTextActive]}>{item.label}</Text>
-          </Pressable>
+          </Tappable>
         );
       })}
     </View>
@@ -182,28 +319,32 @@ function StepTabs({ value, onChange }) {
 function PhotoScreen({ photo, objects, analysisState, pickImage }) {
   return (
     <View style={styles.stack}>
-      <Pressable style={styles.photoPanel} onPress={pickImage}>
+      <Tappable style={styles.photoPanel} onPress={pickImage} scaleTo={0.99}>
         {photo ? (
           <AnnotatedPhoto photo={photo} objects={objects} showArrows={false} />
         ) : (
           <View style={styles.photoEmpty}>
-            <View style={styles.addCircle}>
-              <Ionicons name="add" size={32} color="#fff" />
-            </View>
+            <FadeInItem index={0}>
+              <View style={styles.addCircle}>
+                <Ionicons name="add" size={32} color="#fff" />
+              </View>
+            </FadeInItem>
             <Text style={styles.photoTitle}>Upload one bedroom photo</Text>
-            <Text style={styles.bodyText}>Use a clear wide shot with furniture, floor, and doorway visible.</Text>
+            <Text style={styles.bodyTextLight}>Use a clear wide shot with furniture, floor, and doorway visible.</Text>
           </View>
         )}
-      </Pressable>
+      </Tappable>
 
       {analysisState === "scanning" ? (
-        <View style={styles.scanBanner}>
-          <ActivityIndicator color={palette.greenDark} />
-          <View style={styles.flex}>
-            <Text style={styles.scanTitle}>AI analysis simulated</Text>
-            <Text style={styles.bodyText}>Reading room coverage, furniture candidates, and visible clutter.</Text>
+        <FadeInItem>
+          <View style={styles.scanBanner}>
+            <ActivityIndicator color={palette.greenDark} />
+            <View style={styles.flex}>
+              <Text style={styles.scanTitle}>AI analysis simulated</Text>
+              <Text style={styles.bodyText}>Reading room coverage, furniture candidates, and visible clutter.</Text>
+            </View>
           </View>
-        </View>
+        </FadeInItem>
       ) : null}
 
       <Panel title="Capture checks">
@@ -226,32 +367,29 @@ function InventoryScreen({ objects, updateObject, addObject, constraints, toggle
     <View style={styles.stack}>
       <Panel title="Editable inventory" actionLabel="Add item" onAction={addObject}>
         <View style={styles.inventoryList}>
-          {objects.map((item) => (
-            <View key={item.id} style={styles.itemRow}>
+          {objects.map((item, index) => (
+            <FadeInItem key={item.id} index={index} style={styles.itemRow}>
               <View style={[styles.swatch, { backgroundColor: colorForType(item.type) }]} />
               <View style={styles.itemFields}>
                 <View style={styles.confidenceLine}>
                   <Text style={styles.detectedLabel}>Detected object</Text>
                   <Text style={styles.confidenceText}>{Math.round((item.confidence || 0.5) * 100)}% confidence</Text>
                 </View>
-                <TextInput
+                <FieldInput
                   value={item.label}
                   onChangeText={(label) => updateObject(item.id, { label })}
-                  style={styles.input}
                   placeholder="Object label"
                   placeholderTextColor={palette.muted}
                 />
-                <TextInput
+                <FieldInput
                   value={item.type}
                   onChangeText={(type) => updateObject(item.id, { type: type.toLowerCase() })}
-                  style={styles.input}
                   placeholder="type"
                   placeholderTextColor={palette.muted}
                 />
-                <TextInput
+                <FieldInput
                   value={item.zone}
                   onChangeText={(zone) => updateObject(item.id, { zone })}
-                  style={styles.input}
                   placeholder="zone"
                   placeholderTextColor={palette.muted}
                 />
@@ -262,7 +400,7 @@ function InventoryScreen({ objects, updateObject, addObject, constraints, toggle
                 trackColor={{ true: palette.green, false: "#d8d2c8" }}
                 thumbColor="#fff"
               />
-            </View>
+            </FadeInItem>
           ))}
         </View>
       </Panel>
@@ -272,13 +410,14 @@ function InventoryScreen({ objects, updateObject, addObject, constraints, toggle
           {constraintOptions.map((constraint) => {
             const active = constraints.includes(constraint);
             return (
-              <Pressable
+              <Tappable
                 key={constraint}
                 onPress={() => toggleConstraint(constraint)}
                 style={[styles.chip, active && styles.chipActive]}
+                scaleTo={0.95}
               >
                 <Text style={[styles.chipText, active && styles.chipTextActive]}>{constraint}</Text>
-              </Pressable>
+              </Tappable>
             );
           })}
         </View>
@@ -291,13 +430,15 @@ function AnalysisScreen({ analysis, goal, setGoal, analysisState }) {
   return (
     <View style={styles.stack}>
       {analysisState === "scanning" ? (
-        <View style={styles.scanBanner}>
-          <ActivityIndicator color={palette.greenDark} />
-          <View style={styles.flex}>
-            <Text style={styles.scanTitle}>AI analysis simulated</Text>
-            <Text style={styles.bodyText}>Scoring layout and building editable findings from the uploaded photo.</Text>
+        <FadeInItem>
+          <View style={styles.scanBanner}>
+            <ActivityIndicator color={palette.greenDark} />
+            <View style={styles.flex}>
+              <Text style={styles.scanTitle}>AI analysis simulated</Text>
+              <Text style={styles.bodyText}>Scoring layout and building editable findings from the uploaded photo.</Text>
+            </View>
           </View>
-        </View>
+        </FadeInItem>
       ) : null}
 
       <Panel eyebrow="Room profile" title={analysis.category}>
@@ -309,11 +450,11 @@ function AnalysisScreen({ analysis, goal, setGoal, analysisState }) {
       </Panel>
 
       <Panel title="Findings">
-        {analysis.findings.map((finding) => (
-          <View key={finding.title} style={styles.finding}>
+        {analysis.findings.map((finding, index) => (
+          <FadeInItem key={finding.title} index={index} style={styles.finding}>
             <Text style={styles.findingTitle}>{finding.title}</Text>
             <Text style={styles.bodyText}>{finding.body}</Text>
-          </View>
+          </FadeInItem>
         ))}
       </Panel>
 
@@ -322,9 +463,9 @@ function AnalysisScreen({ analysis, goal, setGoal, analysisState }) {
           {goals.map((item) => {
             const active = item === goal;
             return (
-              <Pressable key={item} onPress={() => setGoal(item)} style={[styles.goal, active && styles.goalActive]}>
+              <Tappable key={item} onPress={() => setGoal(item)} style={[styles.goal, active && styles.goalActive]} scaleTo={0.96}>
                 <Text style={[styles.goalText, active && styles.goalTextActive]}>{item}</Text>
-              </Pressable>
+              </Tappable>
             );
           })}
         </View>
@@ -345,8 +486,8 @@ function PlanScreen({ photo, objects, plan, analysis }) {
       </View>
 
       <Panel title="Rearrangement plan">
-        {plan.map((item) => (
-          <View key={item.step} style={styles.planItem}>
+        {plan.map((item, index) => (
+          <FadeInItem key={item.step} index={index} style={styles.planItem}>
             <View style={styles.planIndex}>
               <Text style={styles.planIndexText}>{item.step}</Text>
             </View>
@@ -358,7 +499,7 @@ function PlanScreen({ photo, objects, plan, analysis }) {
                 To: {item.destination}. {item.reason}
               </Text>
             </View>
-          </View>
+          </FadeInItem>
         ))}
       </Panel>
 
@@ -366,14 +507,14 @@ function PlanScreen({ photo, objects, plan, analysis }) {
         <View style={styles.scoreLine}>
           <Text style={styles.scoreLabel}>Current</Text>
           <View style={styles.scoreTrack}>
-            <View style={[styles.scoreFill, { width: `${analysis.flow}%`, backgroundColor: palette.coral }]} />
+            <AnimatedBar value={analysis.flow} color={palette.coral} />
           </View>
           <Text style={styles.scoreValue}>{analysis.flow}</Text>
         </View>
         <View style={styles.scoreLine}>
           <Text style={styles.scoreLabel}>After plan</Text>
           <View style={styles.scoreTrack}>
-            <View style={[styles.scoreFill, { width: `${Math.min(94, analysis.flow + 22)}%` }]} />
+            <AnimatedBar value={Math.min(94, analysis.flow + 22)} color={palette.green} />
           </View>
           <Text style={styles.scoreValue}>{Math.min(94, analysis.flow + 22)}</Text>
         </View>
@@ -409,10 +550,10 @@ function SummaryScreen({ photo, objects, goal, constraints, analysis, plan }) {
             <Text style={styles.bodyText}>A compact report of the uploaded photo, detected items, constraints, scores, and plan.</Text>
           </View>
         </View>
-        <Pressable onPress={shareSummary} style={styles.primaryButton}>
+        <Tappable onPress={shareSummary} style={styles.primaryButton} scaleTo={0.97}>
           <Ionicons name="share-outline" color="#fff" size={18} />
           <Text style={styles.primaryText}>Share summary</Text>
-        </Pressable>
+        </Tappable>
       </Panel>
 
       <Panel title="Preview">
@@ -423,13 +564,15 @@ function SummaryScreen({ photo, objects, goal, constraints, analysis, plan }) {
 }
 
 function AnnotatedPhoto({ photo, objects, showArrows }) {
+  const visibleObjects = objects.slice(0, 6);
   return (
     <View style={styles.annotatedWrap}>
       <Image source={{ uri: photo.uri }} style={styles.roomPhoto} />
       <View style={styles.photoShade} />
-      {objects.slice(0, 6).map((item) => (
-        <View
+      {visibleObjects.map((item, index) => (
+        <FadeInItem
           key={item.id}
+          index={index}
           style={[
             styles.detectBox,
             {
@@ -444,15 +587,15 @@ function AnnotatedPhoto({ photo, objects, showArrows }) {
           <Text style={[styles.boxLabel, { backgroundColor: colorForType(item.type) }]} numberOfLines={1}>
             {item.label}
           </Text>
-        </View>
+        </FadeInItem>
       ))}
       {showArrows ? (
-        <>
+        <FadeInItem index={visibleObjects.length + 1}>
           <View style={[styles.arrowLine, styles.arrowOne]} />
           <View style={[styles.arrowHead, styles.arrowHeadOne]} />
           <View style={[styles.arrowLine, styles.arrowTwo]} />
           <View style={[styles.arrowHead, styles.arrowHeadTwo]} />
-        </>
+        </FadeInItem>
       ) : null}
     </View>
   );
@@ -467,9 +610,9 @@ function Panel({ title, eyebrow, children, actionLabel, onAction }) {
           <Text style={styles.panelTitle}>{title}</Text>
         </View>
         {actionLabel ? (
-          <Pressable onPress={onAction} style={styles.secondaryButton}>
+          <Tappable onPress={onAction} style={styles.secondaryButton} scaleTo={0.95}>
             <Text style={styles.secondaryText}>{actionLabel}</Text>
-          </Pressable>
+          </Tappable>
         ) : null}
       </View>
       {children}
@@ -643,56 +786,65 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
+    paddingHorizontal: 18,
+    paddingTop: 14,
+    paddingBottom: 10,
   },
   eyebrow: {
     color: palette.greenDark,
     fontSize: 11,
     fontWeight: "800",
-    letterSpacing: 0.8,
+    letterSpacing: 1.1,
     textTransform: "uppercase",
+    marginBottom: 2,
   },
   title: {
     color: palette.ink,
-    fontSize: 32,
-    fontWeight: "900",
-    letterSpacing: 0,
+    fontSize: 34,
+    fontWeight: "800",
+    letterSpacing: -0.6,
   },
   zeroBadge: {
     alignItems: "center",
     backgroundColor: "#e9f1ec",
-    borderRadius: 8,
+    borderColor: "#cdded3",
+    borderWidth: 1,
+    borderRadius: 999,
     flexDirection: "row",
     gap: 6,
-    minHeight: 38,
-    paddingHorizontal: 10,
+    minHeight: 36,
+    paddingHorizontal: 12,
   },
   zeroBadgeText: {
     color: palette.greenDark,
+    fontSize: 13,
     fontWeight: "800",
   },
   tabs: {
     flexDirection: "row",
-    gap: 7,
+    gap: 8,
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 12,
   },
   tab: {
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.72)",
+    backgroundColor: "rgba(255,255,255,0.85)",
     borderColor: palette.line,
-    borderRadius: 8,
+    borderRadius: 14,
     borderWidth: 1,
     flex: 1,
     gap: 3,
-    minHeight: 48,
+    minHeight: 50,
     justifyContent: "center",
   },
   tabActive: {
     backgroundColor: palette.ink,
     borderColor: palette.ink,
+    shadowColor: "#000",
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
   tabText: {
     color: palette.muted,
@@ -703,15 +855,15 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
   scroll: {
-    padding: 16,
-    paddingBottom: 34,
+    padding: 18,
+    paddingBottom: 40,
   },
   stack: {
-    gap: 14,
+    gap: 16,
   },
   photoPanel: {
     backgroundColor: "#2a302d",
-    borderRadius: 8,
+    borderRadius: 20,
     minHeight: 300,
     overflow: "hidden",
   },
@@ -731,13 +883,13 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.08)",
   },
   detectBox: {
-    borderRadius: 6,
+    borderRadius: 8,
     borderWidth: 2,
     position: "absolute",
   },
   boxLabel: {
     alignSelf: "flex-start",
-    borderBottomRightRadius: 6,
+    borderBottomRightRadius: 8,
     color: "#fff",
     fontSize: 10,
     fontWeight: "900",
@@ -799,13 +951,19 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     height: 56,
     justifyContent: "center",
-    marginBottom: 12,
+    marginBottom: 14,
     width: 56,
+    shadowColor: palette.coral,
+    shadowOpacity: 0.4,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
   },
   photoTitle: {
     color: "#fff",
     fontSize: 18,
-    fontWeight: "900",
+    fontWeight: "800",
+    letterSpacing: -0.2,
     marginBottom: 6,
     textAlign: "center",
   },
@@ -814,15 +972,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
+  bodyTextLight: {
+    color: "rgba(255,255,255,0.72)",
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
+  },
   scanBanner: {
     alignItems: "center",
     backgroundColor: "#e9f1ec",
     borderColor: "#cdded3",
-    borderRadius: 8,
+    borderRadius: 14,
     borderWidth: 1,
     flexDirection: "row",
     gap: 12,
-    padding: 13,
+    padding: 14,
   },
   scanTitle: {
     color: palette.greenDark,
@@ -832,13 +996,13 @@ const styles = StyleSheet.create({
   panel: {
     backgroundColor: palette.panel,
     borderColor: palette.line,
-    borderRadius: 8,
+    borderRadius: 18,
     borderWidth: 1,
-    gap: 12,
-    padding: 16,
+    gap: 14,
+    padding: 18,
     shadowColor: "#261f17",
-    shadowOpacity: 0.12,
-    shadowRadius: 18,
+    shadowOpacity: 0.1,
+    shadowRadius: 22,
     shadowOffset: { width: 0, height: 10 },
     elevation: 2,
   },
@@ -850,50 +1014,57 @@ const styles = StyleSheet.create({
   },
   panelTitle: {
     color: palette.ink,
-    fontSize: 19,
-    fontWeight: "900",
+    fontSize: 20,
+    fontWeight: "800",
+    letterSpacing: -0.2,
   },
   secondaryButton: {
     backgroundColor: "#e9f1ec",
-    borderRadius: 8,
+    borderRadius: 12,
     minHeight: 38,
     justifyContent: "center",
     paddingHorizontal: 12,
   },
   secondaryText: {
     color: palette.greenDark,
-    fontWeight: "900",
+    fontWeight: "800",
   },
   primaryButton: {
     alignItems: "center",
     backgroundColor: palette.green,
-    borderRadius: 8,
+    borderRadius: 14,
     flexDirection: "row",
     gap: 8,
     justifyContent: "center",
-    minHeight: 46,
+    minHeight: 50,
     paddingHorizontal: 14,
+    shadowColor: palette.green,
+    shadowOpacity: 0.28,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
   },
   primaryText: {
     color: "#fff",
-    fontWeight: "900",
+    fontWeight: "800",
   },
   metrics: {
     flexDirection: "row",
-    gap: 9,
+    gap: 10,
   },
   metric: {
     backgroundColor: "#f2eee6",
-    borderRadius: 8,
+    borderRadius: 14,
     flex: 1,
     minHeight: 78,
     justifyContent: "center",
-    padding: 11,
+    padding: 12,
   },
   metricValue: {
     color: palette.ink,
     fontSize: 22,
-    fontWeight: "900",
+    fontWeight: "800",
+    letterSpacing: -0.4,
   },
   metricLabel: {
     color: palette.muted,
@@ -912,16 +1083,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#fff",
     borderColor: palette.line,
-    borderRadius: 8,
+    borderRadius: 14,
     borderWidth: 1,
     flexDirection: "row",
     gap: 10,
     padding: 10,
   },
   swatch: {
-    borderRadius: 8,
+    borderRadius: 6,
     height: 56,
-    width: 12,
+    width: 10,
   },
   itemFields: {
     flex: 1,
@@ -937,6 +1108,7 @@ const styles = StyleSheet.create({
     color: palette.greenDark,
     fontSize: 11,
     fontWeight: "900",
+    letterSpacing: 0.5,
     textTransform: "uppercase",
   },
   confidenceText: {
@@ -947,11 +1119,15 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: "#fffdf8",
     borderColor: palette.line,
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
     color: palette.ink,
     minHeight: 40,
     paddingHorizontal: 10,
+  },
+  inputFocused: {
+    borderColor: palette.green,
+    borderWidth: 1.5,
   },
   chipWrap: {
     flexDirection: "row",
@@ -961,11 +1137,11 @@ const styles = StyleSheet.create({
   chip: {
     backgroundColor: "#fff",
     borderColor: palette.line,
-    borderRadius: 8,
+    borderRadius: 999,
     borderWidth: 1,
     minHeight: 38,
     justifyContent: "center",
-    paddingHorizontal: 11,
+    paddingHorizontal: 12,
   },
   chipActive: {
     backgroundColor: palette.blue,
@@ -982,7 +1158,7 @@ const styles = StyleSheet.create({
   finding: {
     backgroundColor: "#fff",
     borderColor: palette.line,
-    borderRadius: 8,
+    borderRadius: 14,
     borderWidth: 1,
     gap: 5,
     padding: 12,
@@ -990,7 +1166,7 @@ const styles = StyleSheet.create({
   findingTitle: {
     color: palette.ink,
     fontSize: 15,
-    fontWeight: "900",
+    fontWeight: "800",
   },
   goalGrid: {
     flexDirection: "row",
@@ -1000,9 +1176,9 @@ const styles = StyleSheet.create({
   goal: {
     backgroundColor: "#fff",
     borderColor: palette.line,
-    borderRadius: 8,
+    borderRadius: 999,
     borderWidth: 1,
-    paddingHorizontal: 11,
+    paddingHorizontal: 12,
     paddingVertical: 10,
   },
   goalActive: {
@@ -1019,7 +1195,7 @@ const styles = StyleSheet.create({
   },
   conceptPanel: {
     backgroundColor: "#2a302d",
-    borderRadius: 8,
+    borderRadius: 20,
     minHeight: 245,
     overflow: "hidden",
   },
@@ -1033,7 +1209,7 @@ const styles = StyleSheet.create({
   },
   overlayCard: {
     backgroundColor: "rgba(255,253,248,0.94)",
-    borderRadius: 8,
+    borderRadius: 16,
     bottom: 14,
     left: 14,
     padding: 12,
@@ -1043,7 +1219,7 @@ const styles = StyleSheet.create({
   overlayTitle: {
     color: palette.ink,
     fontSize: 15,
-    fontWeight: "900",
+    fontWeight: "800",
   },
   overlayText: {
     color: palette.muted,
@@ -1055,8 +1231,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderColor: palette.line,
     borderLeftColor: palette.gold,
-    borderLeftWidth: 6,
-    borderRadius: 8,
+    borderLeftWidth: 5,
+    borderRadius: 14,
     borderWidth: 1,
     flexDirection: "row",
     gap: 10,
@@ -1072,12 +1248,12 @@ const styles = StyleSheet.create({
   },
   planIndexText: {
     color: "#fff",
-    fontWeight: "900",
+    fontWeight: "800",
   },
   planTitle: {
     color: palette.ink,
     fontSize: 15,
-    fontWeight: "900",
+    fontWeight: "800",
     marginBottom: 5,
     textTransform: "capitalize",
   },
@@ -1088,7 +1264,7 @@ const styles = StyleSheet.create({
   },
   scoreLabel: {
     color: palette.ink,
-    fontWeight: "800",
+    fontWeight: "700",
     width: 74,
   },
   scoreTrack: {
@@ -1099,18 +1275,18 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   scoreFill: {
-    backgroundColor: palette.green,
     height: "100%",
+    width: "100%",
   },
   scoreValue: {
     color: palette.ink,
-    fontWeight: "900",
+    fontWeight: "800",
     width: 28,
   },
   summaryHero: {
     alignItems: "center",
     backgroundColor: "#e9f1ec",
-    borderRadius: 8,
+    borderRadius: 16,
     flexDirection: "row",
     gap: 12,
     padding: 12,
