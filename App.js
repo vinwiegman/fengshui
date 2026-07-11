@@ -207,6 +207,8 @@ export default function App() {
   const analysis = useMemo(() => buildAnalysis(objects, constraints, photo), [objects, constraints, photo]);
   const plan = useMemo(() => generatePlan(objects, goal), [objects, goal]);
   const stepAnim = useStepTransition(step);
+  const currentStep = steps.find((item) => item.id === step) || steps[0];
+  const currentStepIndex = Math.max(0, steps.findIndex((item) => item.id === step));
 
   async function pickImage() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -260,16 +262,15 @@ export default function App() {
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.flex}>
           <View style={styles.header}>
             <View>
-              <Text style={styles.eyebrow}>Interior assistant</Text>
+              <Text style={styles.eyebrow}>Room redesign MVP</Text>
               <Text style={styles.title}>RoomRead</Text>
+              <Text style={styles.headerSubtitle}>{currentStep.label} · Step {currentStepIndex + 1} of {steps.length}</Text>
             </View>
             <View style={styles.zeroBadge}>
               <Ionicons name="cash-outline" color={palette.greenDark} size={16} />
               <Text style={styles.zeroBadgeText}>Zero-budget</Text>
             </View>
           </View>
-
-          <StepTabs value={step} onChange={setStep} />
 
           <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
             <Animated.View style={{ opacity: stepAnim.opacity, transform: stepAnim.transform }}>
@@ -288,9 +289,65 @@ export default function App() {
               {step === "summary" && <SummaryScreen photo={photo} objects={objects} goal={goal} constraints={constraints} analysis={analysis} plan={plan} />}
             </Animated.View>
           </ScrollView>
+
+          <FlowDock value={step} onChange={setStep} />
         </KeyboardAvoidingView>
       </SafeAreaView>
     </MotionContext.Provider>
+  );
+}
+
+function FlowDock({ value, onChange }) {
+  const index = Math.max(0, steps.findIndex((item) => item.id === value));
+  const current = steps[index] || steps[0];
+  const previous = steps[index - 1];
+  const next = steps[index + 1];
+
+  return (
+    <View style={styles.flowDock}>
+      <Tappable
+        accessibilityRole="button"
+        disabled={!previous}
+        onPress={() => previous && onChange(previous.id)}
+        style={[styles.flowButton, !previous && styles.flowButtonDisabled]}
+        scaleTo={0.95}
+      >
+        <Ionicons name="chevron-back" size={18} color={previous ? palette.ink : palette.muted} />
+      </Tappable>
+
+      <View style={styles.flowCenter}>
+        <View style={styles.flowLabelRow}>
+          <Ionicons name={current.icon} size={16} color={palette.greenDark} />
+          <Text style={styles.flowLabel}>{current.label}</Text>
+        </View>
+        <View style={styles.progressDots}>
+          {steps.map((item) => {
+            const active = item.id === value;
+            return (
+              <Tappable
+                accessibilityRole="button"
+                key={item.id}
+                onPress={() => onChange(item.id)}
+                style={[styles.progressDot, active && styles.progressDotActive]}
+                scaleTo={0.86}
+              >
+                <View />
+              </Tappable>
+            );
+          })}
+        </View>
+      </View>
+
+      <Tappable
+        accessibilityRole="button"
+        disabled={!next}
+        onPress={() => next && onChange(next.id)}
+        style={[styles.flowButton, styles.flowButtonPrimary, !next && styles.flowButtonDisabled]}
+        scaleTo={0.95}
+      >
+        <Ionicons name="chevron-forward" size={18} color={next ? "#fff" : palette.muted} />
+      </Tappable>
+    </View>
   );
 }
 
@@ -804,6 +861,12 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: -0.6,
   },
+  headerSubtitle: {
+    color: palette.muted,
+    fontSize: 13,
+    fontWeight: "700",
+    marginTop: 3,
+  },
   zeroBadge: {
     alignItems: "center",
     backgroundColor: "#e9f1ec",
@@ -856,7 +919,69 @@ const styles = StyleSheet.create({
   },
   scroll: {
     padding: 18,
-    paddingBottom: 40,
+    paddingBottom: 120,
+  },
+  flowDock: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,253,248,0.96)",
+    borderColor: "rgba(222,216,205,0.9)",
+    borderRadius: 24,
+    borderWidth: 1,
+    bottom: 14,
+    flexDirection: "row",
+    gap: 12,
+    left: 16,
+    padding: 10,
+    position: "absolute",
+    right: 16,
+    shadowColor: "#261f17",
+    shadowOpacity: 0.14,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 6,
+  },
+  flowButton: {
+    alignItems: "center",
+    backgroundColor: "#f2eee6",
+    borderRadius: 18,
+    height: 44,
+    justifyContent: "center",
+    width: 44,
+  },
+  flowButtonPrimary: {
+    backgroundColor: palette.ink,
+  },
+  flowButtonDisabled: {
+    opacity: 0.35,
+  },
+  flowCenter: {
+    alignItems: "center",
+    flex: 1,
+    gap: 8,
+  },
+  flowLabelRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 6,
+  },
+  flowLabel: {
+    color: palette.ink,
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  progressDots: {
+    flexDirection: "row",
+    gap: 7,
+  },
+  progressDot: {
+    backgroundColor: "#d8d1c5",
+    borderRadius: 999,
+    height: 7,
+    width: 7,
+  },
+  progressDotActive: {
+    backgroundColor: palette.green,
+    width: 24,
   },
   stack: {
     gap: 16,
