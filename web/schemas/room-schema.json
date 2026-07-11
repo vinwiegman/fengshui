@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "room-schema.json",
+  "title": "Room",
+  "description": "Shared room representation — the contract between the scanner, the optimizer and the web client. All lengths in meters; origin top-left; y grows downward.",
+  "type": "object",
+  "required": ["room", "furniture"],
+  "properties": {
+    "id": { "type": "string" },
+    "name": { "type": "string" },
+    "purpose": { "type": "string", "enum": ["bedroom", "office", "living_room", "other"] },
+    "room": {
+      "type": "object",
+      "required": ["boundary"],
+      "properties": {
+        "boundary": {
+          "type": "array",
+          "minItems": 3,
+          "items": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 }
+        }
+      }
+    },
+    "openings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "position", "width"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string", "enum": ["door", "window", "opening"] },
+          "position": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 },
+          "width": { "type": "number", "exclusiveMinimum": 0 }
+        }
+      }
+    },
+    "furniture": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "category", "position", "width", "depth", "rotation", "movable"],
+        "properties": {
+          "id": { "type": "string" },
+          "category": { "type": "string" },
+          "label": { "type": "string" },
+          "position": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 },
+          "width": { "type": "number", "exclusiveMinimum": 0 },
+          "depth": { "type": "number", "exclusiveMinimum": 0 },
+          "rotation": { "type": "number", "enum": [0, 90, 180, 270] },
+          "movable": { "type": "boolean" }
+        }
+      }
+    }
+  }
+}

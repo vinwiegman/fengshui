@@ -1,0 +1,22 @@
+{
+  "id": "living-room-01",
+  "name": "Living room · L-shape",
+  "purpose": "living_room",
+  "room": {
+    "boundary": [[0, 0], [5.2, 0], [5.2, 3.0], [3.4, 3.0], [3.4, 4.4], [0, 4.4]]
+  },
+  "openings": [
+    { "id": "door_1", "type": "door", "position": [0.75, 4.4], "width": 0.95 },
+    { "id": "win_1", "type": "window", "position": [2.0, 0], "width": 1.8 },
+    { "id": "win_2", "type": "window", "position": [5.2, 1.5], "width": 1.3 }
+  ],
+  "furniture": [
+    { "id": "sofa_1", "category": "sofa", "label": "Sofa", "position": [2.4, 2.3], "width": 2.2, "depth": 0.95, "rotation": 180, "movable": true },
+    { "id": "tv_1", "category": "tv_stand", "label": "TV stand", "position": [2.5, 0.3], "width": 1.6, "depth": 0.45, "rotation": 0, "movable": true },
+    { "id": "ct_1", "category": "coffee_table", "label": "Coffee table", "position": [2.4, 1.35], "width": 1.1, "depth": 0.6, "rotation": 0, "movable": true },
+    { "id": "bs_1", "category": "bookshelf", "label": "Bookshelf", "position": [4.95, 2.4], "width": 1.0, "depth": 0.35, "rotation": 270, "movable": true },
+    { "id": "table_1", "category": "table", "label": "Side table", "position": [0.5, 2.6], "width": 0.7, "depth": 0.7, "rotation": 0, "movable": true },
+    { "id": "plant_1", "category": "plant", "label": "Plant", "position": [4.8, 0.4], "width": 0.45, "depth": 0.45, "rotation": 0, "movable": true },
+    { "id": "ch_1", "category": "chair", "label": "Armchair", "position": [0.7, 1.4], "width": 0.85, "depth": 0.85, "rotation": 90, "movable": true }
+  ]
+}

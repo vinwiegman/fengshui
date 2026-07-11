@@ -39,6 +39,29 @@ This repository is intentionally scoped as a polished POC: it demonstrates the m
 - pnpm
 - Expo Go for local mobile testing
 
+## Web Client — Roomshift (`web/`)
+
+Alongside the mobile POC, [`web/`](web) contains **Roomshift**, a browser-based floor-plan
+editor and real spatial optimizer built on a shared room JSON schema
+([`web/schemas/room-schema.json`](web/schemas/room-schema.json)):
+
+- editable top-down SVG floor plan with drag-and-drop furniture and live constraint
+  warnings (overlaps, out-of-bounds, blocked doors);
+- a simulated-annealing layout optimizer with hard geometric constraints and
+  measurable objectives (open space, walking paths, wall alignment, functional relations,
+  movement cost);
+- three generated layout alternatives with before/after comparison, movement arrows and
+  rule-based explanations derived from measured layout diffs.
+
+```bash
+cd web
+npm install
+npm run dev   # http://localhost:5173
+```
+
+See [`web/README.md`](web/README.md) for the full write-up of the constraint engine and
+objective terms.
+
 ## Run Locally
 
 Install dependencies:
@@ -100,6 +123,11 @@ It does not yet perform real computer vision. Object detection, segmentation, de
 │   ├── architecture.md
 │   ├── demo-script.md
 │   └── roadmap.md
+├── web/                  # Roomshift web client + layout optimizer (Vite + React)
+│   ├── src/engine/       # geometry, constraints, objectives, simulated annealing
+│   ├── src/components/   # SVG floor-plan editor, inspector, results panel
+│   ├── schemas/          # shared room JSON schema
+│   └── sample-data/      # importable sample rooms
 └── README.md
 ```
 

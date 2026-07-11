@@ -1,0 +1,20 @@
+{
+  "id": "office-01",
+  "name": "Home office · 3.6 × 3.0 m",
+  "purpose": "office",
+  "room": {
+    "boundary": [[0, 0], [3.6, 0], [3.6, 3.0], [0, 3.0]]
+  },
+  "openings": [
+    { "id": "door_1", "type": "door", "position": [3.0, 3.0], "width": 0.85 },
+    { "id": "win_1", "type": "window", "position": [1.8, 0], "width": 1.8 }
+  ],
+  "furniture": [
+    { "id": "desk_1", "category": "desk", "label": "Desk", "position": [1.8, 1.6], "width": 1.5, "depth": 0.75, "rotation": 0, "movable": true },
+    { "id": "chair_1", "category": "chair", "label": "Office chair", "position": [1.8, 2.4], "width": 0.55, "depth": 0.55, "rotation": 180, "movable": true },
+    { "id": "bs_1", "category": "bookshelf", "label": "Bookshelf", "position": [0.2, 1.5], "width": 1.8, "depth": 0.35, "rotation": 90, "movable": true },
+    { "id": "bs_2", "category": "bookshelf", "label": "Bookshelf 2", "position": [0.2, 2.7], "width": 0.9, "depth": 0.35, "rotation": 90, "movable": true },
+    { "id": "sofa_1", "category": "sofa", "label": "Reading sofa", "position": [2.9, 1.0], "width": 1.4, "depth": 0.8, "rotation": 90, "movable": true },
+    { "id": "plant_1", "category": "plant", "label": "Plant", "position": [3.35, 2.3], "width": 0.4, "depth": 0.4, "rotation": 0, "movable": true }
+  ]
+}

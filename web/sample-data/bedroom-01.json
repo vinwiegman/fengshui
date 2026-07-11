@@ -1,0 +1,21 @@
+{
+  "id": "bedroom-01",
+  "name": "Bedroom · 4.2 × 3.5 m",
+  "purpose": "bedroom",
+  "room": {
+    "boundary": [[0, 0], [4.2, 0], [4.2, 3.5], [0, 3.5]]
+  },
+  "openings": [
+    { "id": "door_1", "type": "door", "position": [0.85, 3.5], "width": 0.9 },
+    { "id": "win_1", "type": "window", "position": [2.1, 0], "width": 1.4 },
+    { "id": "win_2", "type": "window", "position": [4.2, 1.4], "width": 1.1 }
+  ],
+  "furniture": [
+    { "id": "bed_1", "category": "bed", "label": "Bed", "position": [2.2, 1.35], "width": 1.6, "depth": 2.0, "rotation": 90, "movable": true },
+    { "id": "ns_1", "category": "nightstand", "label": "Nightstand", "position": [3.5, 0.8], "width": 0.45, "depth": 0.4, "rotation": 0, "movable": true },
+    { "id": "wr_1", "category": "wardrobe", "label": "Wardrobe", "position": [0.35, 1.1], "width": 1.6, "depth": 0.65, "rotation": 90, "movable": true },
+    { "id": "desk_1", "category": "desk", "label": "Desk", "position": [3.4, 3.1], "width": 1.3, "depth": 0.65, "rotation": 180, "movable": true },
+    { "id": "chair_1", "category": "chair", "label": "Desk chair", "position": [3.4, 2.4], "width": 0.5, "depth": 0.5, "rotation": 0, "movable": true },
+    { "id": "dr_1", "category": "dresser", "label": "Dresser", "position": [1.8, 3.15], "width": 1.0, "depth": 0.5, "rotation": 180, "movable": true }
+  ]
+}
